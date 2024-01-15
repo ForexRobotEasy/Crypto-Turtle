@@ -1,0 +1,78 @@
+
+// Program Name: Crypto Turtle
+// Developer's Site: forexroboteasy.com
+// Developer: Forex Robot Easy Team
+
+// Include necessary libraries
+#include <Trade/Trade.mqh>
+#include <Trade/Trade.mqh>
+#include <Trade/PositionInfo.mqh>
+#include <Expert/Expert.mqh>
+
+// Define constants
+#define SYMBOL 'BTCUSD' // Symbol to trade
+#define ENTRY_FACTOR 0.02 // Entry factor for Turtle Trader rules
+#define EXIT_FACTOR 0.02 // Exit factor for Turtle Trader rules
+
+// Define global variables
+CTrade trade; // Trade object for executing trades
+double entryPrice; // Entry price for the current position
+
+// Initialize the expert advisor
+int OnInit()
+{
+    // Set the symbol for trading
+    trade.SetSymbol(SYMBOL);
+    
+    return(INIT_SUCCEEDED);
+}
+
+// Start the expert advisor
+void OnTick()
+{
+    // Check if there is an open position
+    if (trade.PositionSelect(SYMBOL))
+    {
+        // Calculate the trailing stop level
+        double trailingStop = trade.Point() * 100; // Use 100 points as the trailing stop level
+        
+        // Check if the current position is profitable
+        if (trade.PositionProfit() >= trailingStop)
+        {
+            // Set the trailing stop level
+            trade.PositionSetTrailingStop(trailingStop);
+        }
+    }
+    else
+    {
+        // Check for potential trading opportunities
+        double highestHigh = High[Highest(NULL, 0, MODE_HIGH, 20, 1)]; // Calculate the highest high of the last 20 bars
+        double lowestLow = Low[Lowest(NULL, 0, MODE_LOW, 20, 1)]; // Calculate the lowest low of the last 20 bars
+        
+        // Check if the current price is higher than the highest high
+        if (Bid > highestHigh)
+        {
+            // Calculate the entry price for a long position
+            entryPrice = NormalizeDouble(Bid + ENTRY_FACTOR * (highestHigh - lowestLow), Digits);
+            
+            // Open a new long position
+            trade.Buy(0.01, entryPrice, entryPrice - EXIT_FACTOR * (highestHigh - lowestLow), entryPrice + EXIT_FACTOR * (highestHigh - lowestLow));
+        }
+        // Check if the current price is lower than the lowest low
+        else if (Ask < lowestLow)
+        {
+            // Calculate the entry price for a short position
+            entryPrice = NormalizeDouble(Ask - ENTRY_FACTOR * (highestHigh - lowestLow), Digits);
+            
+            // Open a new short position
+            trade.Sell(0.01, entryPrice, entryPrice + EXIT_FACTOR * (highestHigh - lowestLow), entryPrice - EXIT_FACTOR * (highestHigh - lowestLow));
+        }
+    }
+}
+
+// Stop the expert advisor
+void OnDeinit(const int reason)
+{
+    // Close any open positions
+    trade.PositionCloseAll();
+}
